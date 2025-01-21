@@ -13,7 +13,7 @@ import funcoes_teste_dataset as teste
 import random
 global alvo 
 alvo = "Label"
-
+# minha nossa como demorou rodar isso, no final tem um comentario com a saida, e so pra saber quantos e os tipos pacotes dos datasets
 
 
 if not os.path.exists("datasets"):
