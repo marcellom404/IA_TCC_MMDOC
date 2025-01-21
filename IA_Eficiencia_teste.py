@@ -15,11 +15,12 @@ global alvo
 alvo = "Label"
 
 
-
-if os.path.exists(mov.get_dataset_paths_from_db()[0]):
+if not os.path.exists("datasets"):
+    print("--")
     path = mov.get_dataset_paths_from_db()[0]
+elif os.path.exists("datasets"):
+    path = "datasets/1"
 else:
-    
     path = kagglehub.dataset_download("ernie55ernie/improved-cicids2017-and-csecicids2018")
     mov.save_dataset_path_to_db(mov.move_dataset(path))
 # 'CSECICIDS2018_improved/Friday-02-03-2018.csv' botnet
@@ -29,15 +30,14 @@ print(path + "/" + DATASET_NAME)
 # Carregando os dados em um DataFrame
 
 num_linhas_total = 6168188  
-num_linhas_desejado = 6168188  
+num_linhas_desejado = 61681  
 # Gera uma lista de índices de linhas para pular aleatoriamente pq meu pc nao tem memoria infinita ainda
 skip_indices = sorted(random.sample(range(1, num_linhas_total + 1), 
                                      num_linhas_total - num_linhas_desejado))
 
 df = pd.read_csv(path + "/" + DATASET_NAME,skiprows=skip_indices)
 
-# como em algums dos datasets tem quantidades muito desproporcionais de dados(90% ser benigno por exemplo) vamos deixar mais homogêneo
-df.groupby("Label").apply(lambda x: x.sample(n=100)).reset_index(drop=True)
+
 # colunas que precisam ser removidas
 for i in df.columns.values,df.iloc[1] :
     print(i)
