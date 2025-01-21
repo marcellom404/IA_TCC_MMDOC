@@ -16,10 +16,8 @@ def move_dataset(dataset_path, destination_folder="datasets"):
     if not os.path.exists(dataset_path):
         print(f"Erro: O arquivo {dataset_path} não existe.")
         return None
-
-    if not os.path.exists(destination_folder):
-        os.makedirs(destination_folder)
-
+    if not os.path.exists(destination_folder): 
+        os.makedirs(destination_folder)  
     dataset_filename = os.path.basename(dataset_path)
     new_dataset_path = os.path.join(destination_folder, dataset_filename)
 
@@ -50,7 +48,6 @@ def save_dataset_path_to_db(dataset_path, db_name="dataset_paths.db"):
             path TEXT UNIQUE
         )
     ''')
-
     try:
         cursor.execute("INSERT INTO datasets (path) VALUES (?)", (dataset_path,))
         conn.commit()
@@ -78,6 +75,5 @@ def get_dataset_paths_from_db(db_name="dataset_paths.db"):
 
     # Fecha a conexão
     conn.close()
-
-    # Retorna uma lista de caminhos
+    # Retorna uma lista de caminhos, caso eu va usar mais de um dataset
     return [path[0] for path in paths] 

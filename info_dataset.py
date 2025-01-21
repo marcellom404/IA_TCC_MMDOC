@@ -16,10 +16,8 @@ alvo = "Label"
 # minha nossa como demorou rodar isso, no final tem um comentario com a saida, e so pra saber quantos e os tipos pacotes dos datasets
 
 
-if not os.path.exists("datasets"):
-    print("--")
-    path = mov.get_dataset_paths_from_db()[0]
-elif os.path.exists("datasets"):
+if os.path.exists("datasets"):
+
     path = "datasets/1"
 else:
     path = kagglehub.dataset_download("ernie55ernie/improved-cicids2017-and-csecicids2018")
