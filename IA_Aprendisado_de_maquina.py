@@ -11,9 +11,10 @@ import os
 import manipul_arquivo as mov
 import funcoes_teste_dataset as teste
 import random
+import  conversor as conv
 global alvo 
 alvo = "Label"
-
+# pandas,numpy,matplotlib,kagglehub,sklearn
 # baixa o dataset se ele ja nao estiver baixado
 if os.path.exists("datasets"):
 
@@ -22,9 +23,8 @@ else:
     path = kagglehub.dataset_download("ernie55ernie/improved-cicids2017-and-csecicids2018")
     #move o dataset para fora dos arquivos temporarios, salvando em datasets/
     mov.save_dataset_path_to_db(mov.move_dataset(path))
-# 'CSECICIDS2018_improved/Friday-02-03-2018.csv' botnet
-# 'CSECICIDS2018_improved/Friday-16-02-2018.csv' DOS hulk+ftp-bruteforce
-DATASET_NAME = 'CSECICIDS2018_improved/Friday-02-03-2018.csv'
+# informaçoes sobre os datasets no info_dataset.py 'CSECICIDS2018_improved/Friday-02-03-2018.csv'
+DATASET_NAME = "thursday.csv"
 print(path + "/" + DATASET_NAME)
 # Carregando os dados em um DataFrame
 
@@ -81,6 +81,7 @@ formatar_variaveis()
 # Função para gerar gráficos com os resultados
 def gerar_grafico(dados, nome):
     # Extraindo eixos x e y a partir dos dados fornecidos
+    # plt.sybplot 
     x = [d[0] for d in dados]
     y = [d[1] * 100 for d in dados]  # Convertendo precisão para porcentagem
 
@@ -99,7 +100,7 @@ def gerar_grafico(dados, nome):
     # Exibindo a grade e a legenda para facilitar a leitura do gráfico
     plt.grid(True)
     plt.legend()
-
+    
     # Mostrando o gráfico final
     plt.show()
 
