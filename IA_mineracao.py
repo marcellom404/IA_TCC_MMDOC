@@ -8,7 +8,9 @@ import os
 import multiprocessing
 
 # --- Algoritmos de Mineração ---
-# mlxtend é ótimo para Apriori e FP-Growth e se integra bem com pandas.
+# mlxtend : Apriori e FP-Growth e se integra bem com pandas.
+# mlxtend nao retorna regras em tempo real, nao tem como parar e salvar progresso... 
+# os testes motraram que e melhor usar weka mesmo.
 from mlxtend.frequent_patterns import apriori, fpgrowth, association_rules
 # PyFIM é uma implementação eficiente para Eclat.
 # ppyFIM ta com um erro de limite de caminho.
@@ -51,19 +53,24 @@ def _prepare_data_for_mining(df: pd.DataFrame, n_bins: int = 4) -> pd.DataFrame:
     # pd.get_dummies cria uma coluna para cada valor único, com True/False.
     # Este é o formato que os algoritmos esperam.
     one_hot_df = pd.get_dummies(processed_df.astype(str))
+    one_hot_df.to_csv('one_hot_encoded_data.csv', index=False)
     print("Pré-processamento concluído.")
     return one_hot_df
 
 
 def _run_apriori(queue, df, min_support):
     """Função worker para executar o Apriori em um processo separado."""
-    frequent_itemsets = apriori(df, min_support=min_support, use_colnames=True)
+    print("Iniciando Apriori...")
+    frequent_itemsets = apriori(df, min_support=min_support, use_colnames=True, low_memory=True,verbose=True)
+    print(f"Encontrados {len(frequent_itemsets)} itemsets frequentes.")
     queue.put(frequent_itemsets)
 
 
 def _run_fpgrowth(queue, df, min_support):
     """Função worker para executar o FP-Growth em um processo separado."""
+    print("Iniciando FP-Growth...")
     frequent_itemsets = fpgrowth(df, min_support=min_support, use_colnames=True)
+    print(f"Encontrados {len(frequent_itemsets)} itemsets frequentes.")
     queue.put(frequent_itemsets)
 
 
@@ -125,7 +132,7 @@ class AprioriMiner(BaseMiner):
         p = multiprocessing.Process(target=_run_apriori, args=(q, one_hot_df, min_support))
         p.start()
         p.join(timeout=timeout_seconds)
-
+        
         if p.is_alive():
             p.terminate()
             p.join()
@@ -151,6 +158,7 @@ class FPGrowthMiner(BaseMiner):
         p.join(timeout=timeout_seconds)
 
         if p.is_alive():
+            
             p.terminate()
             p.join()
             print(f"ERRO: FP-Growth excedeu o tempo limite de {timeout_seconds} segundos.")
