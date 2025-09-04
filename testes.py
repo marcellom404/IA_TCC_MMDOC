@@ -4,6 +4,8 @@ import threading
 import socket
 
 # Obtém o IP local
+# capturar os pacotes e possivel mais teria que identificar dados do dataset apartir deles
+# oque e bem complicado
 local_ip = socket.gethostbyname(socket.gethostname())
 
 

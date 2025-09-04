@@ -115,6 +115,6 @@ for i in dataset_names:
 # Label
 # BENIGN                                          6518882
 # Infiltration - NMAP Portscan                      49740
-# Infiltration - Dropbox Download                       46
+# Infiltration - Dropbox Download                        46
 # Infiltration - Communication Victim Attacker         43
 # Infiltration - Dropbox Download - Attempted          15

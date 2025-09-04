@@ -1,5 +1,5 @@
 
-from IA_mineracao import FPGrowthMiner
+from arqv.IA_mineracao import FPGrowthMiner
 from DATA_load import df,treinamento,validacao,alvo,teste
 # 
 

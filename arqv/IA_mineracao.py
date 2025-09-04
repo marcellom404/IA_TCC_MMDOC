@@ -14,6 +14,8 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 # mlxtend nao retorna regras em tempo real, nao tem como parar e salvar progresso...
 # os testes indicaram que o dataset escolhido e incompatível com mineração
 # novo teste, selecionar colunas especificas para testar a mineração.
+# funciona mais nao tive resultados uteis apos horas de mineraçao
+# fazer o tcc para aprendisado de maquina, e se a mineraçao der resultado acrecentar no tcc.
 from mlxtend.frequent_patterns import apriori, fpgrowth, association_rules
 # PyFIM é uma implementação eficiente para Eclat.
 # ppyFIM ta com um erro de limite de caminho.

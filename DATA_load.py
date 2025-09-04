@@ -20,7 +20,7 @@ else:
     #move o dataset para fora dos arquivos temporarios, salvando em datasets/
     mov.save_dataset_path_to_db(mov.move_dataset(path))
 # informaçoes sobre os datasets no info_dataset.py 'CSECICIDS2018_improved/Friday-02-03-2018.csv'
-DATASET_NAME ="CICIDS2017_improved\\thursday.csv"
+DATASET_NAME ="thursday.csv"
 print(path + "/" + DATASET_NAME)
 DATASET_PATH = path + "/" + DATASET_NAME
 # Carregando os dados em um DataFrame

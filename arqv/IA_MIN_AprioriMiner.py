@@ -1,5 +1,5 @@
-from IA_mineracao import AprioriMiner
-from IA_mineracao import create_random_datasets
+from arqv.IA_mineracao import AprioriMiner
+from arqv.IA_mineracao import create_random_datasets
 from DATA_load import treinamento
 import gc
 
