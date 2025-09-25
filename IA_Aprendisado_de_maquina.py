@@ -15,30 +15,13 @@ import funcoes_teste_dataset as teste
 import random
 import  conversor as conv
 from DATA_load import df,treinamento,validacao,teste,alvo
+import database
 
+# Criar a tabela do banco de dados se não existir
+database.create_table()
 
 # adicionar outros metodos de avaliação, como o f1 score, e o recall, e o precision
 # pandas,numpy,matplotlib,kagglehub,sklearn
-
-# Função para inicializar variáveis globais
-def formatar_variaveis():
-    global melhor_arvore, melhor_knn, melhor_mlp, melhor_random_forest
-    global saida_arvore, saida_mlp, saida_knn, saida_random_forest
-
-    # Listas para armazenar saídas dos modelos
-    saida_arvore = []
-    saida_mlp = []
-    saida_knn = []
-    saida_random_forest = []
-
-    # Variáveis para armazenar o melhor resultado de cada modelo
-    melhor_arvore = ["", 0]
-    melhor_mlp = ["", 0]
-    melhor_knn = ["", 0]
-    melhor_random_forest = ["", 0]
-    treinamento_tempo = 0
-# Inicializando variáveis antes de iniciar o processo
-formatar_variaveis()
 
 # Função para gerar gráficos com os resultados
 def gerar_grafico(dados, nome):
@@ -61,7 +44,7 @@ def gerar_grafico(dados, nome):
     # Definindo título e rótulos dos eixos
     plt.title(f"Desempenho do Modelo - {nome}")
     plt.xlabel("Parâmetros")
-    plt.ylabel("Precisão (%)")
+    plt.ylabel("Precisão (%)\n")
 
     # Exibindo a grade e a legenda para facilitar a leitura do gráfico
     plt.grid(True)
@@ -69,7 +52,8 @@ def gerar_grafico(dados, nome):
 
 # Função para ajustar e avaliar o k-NN com diferentes números de vizinhos
 def knn(data):
-    global melhor_knn, saida_knn
+    saida_knn = []
+    melhor_knn = ["", 0]
     for i in [1, 2, 4, 8, 16, 32, 64, 65, 66, 67, 68]:
         # Inicializando o modelo com 'i' vizinhos
         ia = KNeighborsClassifier(n_neighbors=i)
@@ -83,13 +67,16 @@ def knn(data):
         # Armazenando o melhor modelo
         if melhor_knn[1] < prec:
             melhor_knn = [f"{i}", prec, valida]
+    
+    # Salvar o melhor resultado no banco de dados
+    database.save_result('K-NN', melhor_knn[1], {'n_neighbors': int(melhor_knn[0])})
+    return melhor_knn, saida_knn
 
-# knn(treinamento)
-# print(f"Usando k-NN, o melhor número de vizinhos foi {melhor_knn[0]}, com precisão de {melhor_knn[1]*100:.2f}%")
 
 # Função para ajustar e avaliar o MLP com diferentes quantidades de camadas ocultas
 def mlp(data):
-    global melhor_mlp, saida_mlp
+    saida_mlp = []
+    melhor_mlp = ["", 0]
     # Testando configurações de 2 a 8 camadas ocultas
     for i in [2, 3, 4, 5, 6, 7, 8]:
         # Inicializando o MLP com 'i' camadas ocultas e limite de iterações
@@ -109,15 +96,15 @@ def mlp(data):
         if melhor_mlp[1] < prec:
             melhor_mlp = [f"{i}", prec, valida]
 
-# Executando o ajuste do MLP no conjunto de treinamento
-# mlp(treinamento)
+    # Salvar o melhor resultado no banco de dados
+    database.save_result('MLP', melhor_mlp[1], {'hidden_layer_sizes': int(melhor_mlp[0])})
+    return melhor_mlp, saida_mlp
 
-# Exibindo o resultado com o número ideal de camadas
-# print(f"O melhor resultado foi obtido com {melhor_mlp[0]} camadas ocultas, alcançando {melhor_mlp[1] * 100:.2f}% de precisão.")
 
 # Função para ajustar e avaliar o modelo de Árvore de Decisão
 def arvore(data):
-    global melhor_arvore, saida_arvore
+    saida_arvore = []
+    melhor_arvore = ["", 0]
     # Testando profundidades da árvore variando entre 1 e 10
     for i in range(1, 11):
         # Inicializando a árvore de decisão
@@ -137,66 +124,90 @@ def arvore(data):
         if melhor_arvore[1] < prec:
             melhor_arvore = [f"{i}", prec, valida]
 
-# Executando o ajuste da árvore de decisão no conjunto de treinamento
-# arvore(treinamento)
+    # Salvar o melhor resultado no banco de dados
+    database.save_result('Decision Tree', melhor_arvore[1], {'max_depth': int(melhor_arvore[0])})
+    return melhor_arvore, saida_arvore
 
-# Exibindo o resultado
-# print(f"O melhor resultado para a árvore de decisão foi obtido com profundidade {melhor_arvore[0]}, com precisão de {melhor_arvore[1] * 100:.2f}%")
+
 def random_forest(data):
-    global melhor_random_forest, saida_random_forest
+    saida_random_forest = []
+    melhor_random_forest = ["", 0]
     # Testando com diferentes números de árvores na floresta
-    for n_arvores in [50, 100, 200]:
+    for n_arvores in range(15,25):
         ia = RandomForestClassifier(n_estimators=n_arvores, random_state=42, n_jobs=-1) # n_jobs=-1 usa todos os cores do processador
         ia.fit(data.drop(alvo, axis=1), data[alvo])
         valida = ia.predict(validacao.drop(alvo, axis=1))
         prec = accuracy_score(validacao[alvo], valida)
         saida_random_forest.append([f"{n_arvores} árvores", prec])
-        
+        # print(f"Random Forest com {n_arvores} árvores: {prec*100:.5f}% de precisão.")
         if prec > melhor_random_forest[1]:
             melhor_random_forest = [f"{n_arvores} árvores", prec, valida]
+
+    # Salvar o melhor resultado no banco de dados
+    # Extrai o número de árvores do string
+    n_arvores_melhor = int(melhor_random_forest[0].split()[0])
+    database.save_result('Random Forest', melhor_random_forest[1], {'n_estimators': n_arvores_melhor})
+    return melhor_random_forest, saida_random_forest
+
 # Função para treinar todos os modelos
 def treinar_todos(dados):
-    arvore(dados)
-    knn(dados)
-    mlp(dados)
-    random_forest(dados)
+    melhor_arvore, saida_arvore = arvore(dados)
+    melhor_knn, saida_knn = knn(dados)
+    melhor_mlp, saida_mlp = mlp(dados)
+    melhor_random_forest, saida_random_forest = random_forest(dados)
+    
+    resultados = {
+        "melhor_arvore": melhor_arvore,
+        "saida_arvore": saida_arvore,
+        "melhor_knn": melhor_knn,
+        "saida_knn": saida_knn,
+        "melhor_mlp": melhor_mlp,
+        "saida_mlp": saida_mlp,
+        "melhor_random_forest": melhor_random_forest,
+        "saida_random_forest": saida_random_forest
+    }
+    return resultados
 
-# Inicializando variáveis antes de iniciar o processo
-formatar_variaveis()
+def imprimir_resultados(resultados):
+    melhor_mlp = resultados["melhor_mlp"]
+    melhor_arvore = resultados["melhor_arvore"]
+    melhor_knn = resultados["melhor_knn"]
+    melhor_random_forest = resultados["melhor_random_forest"]
 
-# Treinando todos os modelos com o conjunto de treinamento depende muito da maquina que está rodando
-treinar_todos(treinamento) 
-
-# Exibindo as melhores precisões alcançadas pelos algoritmos
-print("Estas são as melhores precisões alcançadas pelos algoritmos:")
-print(f"""MLP: {melhor_mlp[1]*100:.5f}% Erra uma ves a cada {conv.calcular_frequencia_de_erro(melhor_mlp[1]*100)} tentativas \n
+    print("Estas são as melhores precisões alcançadas pelos algoritmos:")
+    print(f'''MLP: {melhor_mlp[1]*100:.5f}% Erra uma ves a cada {conv.calcular_frequencia_de_erro(melhor_mlp[1]*100)} tentativas \n
 Árvore de Decisões: {melhor_arvore[1]*100:.5f}% Erra uma ves a cada {conv.calcular_frequencia_de_erro(melhor_arvore[1]*100)} tentativas \n
 K-NN: {melhor_knn[1]*100:.5f}% Erra uma ves a cada {conv.calcular_frequencia_de_erro(melhor_knn[1]*100)} tentativas \n
-Random Forest: {melhor_random_forest[1]*100:.5f}% Erra uma ves a cada {conv.calcular_frequencia_de_erro(melhor_random_forest[1]*100)} tentativas""")
+Random Forest: {melhor_random_forest[1]*100:.5f}% Erra uma ves a cada {conv.calcular_frequencia_de_erro(melhor_random_forest[1]*100)} tentativas''')
 
-# Identificando o modelo com a melhor precisão
-melhor_modelo = ["", 0]
-resultados = [
-    ["MLP", melhor_mlp[1]],
-    ["Árvore de Decisões", melhor_arvore[1]],
-    ["K-NN", melhor_knn[1]],
-    ["Random Forest", melhor_random_forest[1]]
-]
+    # Identificando o modelo com a melhor precisão
+    melhor_modelo = ["", 0]
+    lista_resultados = [
+        ["MLP", melhor_mlp[1]],
+        ["Árvore de Decisões", melhor_arvore[1]],
+        ["K-NN", melhor_knn[1]],
+        ["Random Forest", melhor_random_forest[1]]
+    ]
 
-for modelo in resultados:
-    if modelo[1] > melhor_modelo[1]:
-        melhor_modelo = modelo
+    for modelo in lista_resultados:
+        if modelo[1] > melhor_modelo[1]:
+            melhor_modelo = modelo
+    
+    print(f"O melhor foi o {melhor_modelo[0]}, que teve {melhor_modelo[1] * 100:.5f}% de acerto.")
 
-# print(f"O melhor foi o {melhor_modelo[0]}, que teve {melhor_modelo[1] * 100:.5f}% de acerto.")
+if __name__ == '__main__':
+    resultados = treinar_todos(treinamento)
+    imprimir_resultados(resultados)
 
-formatar_variaveis()
-treinar_todos(treinamento) # O treinamento leva cerca de 15s
+    saida_arvore = resultados["saida_arvore"]
+    saida_knn = resultados["saida_knn"]
+    saida_mlp = resultados["saida_mlp"]
+    saida_random_forest = resultados["saida_random_forest"]
+    
+    gerar_grafico(saida_arvore, "Árvore de Decisão")
+    gerar_grafico(saida_knn, "K-NN")
+    gerar_grafico(saida_mlp, "Multilayer Perceptron")
+    gerar_grafico(saida_random_forest, "Random Forest")
 
-# Gerando os gráficos sequencialmente no thread principal, sem usar threads
-gerar_grafico(saida_arvore, "Árvore de Decisão")
-gerar_grafico(saida_knn, "K-NN")
-gerar_grafico(saida_mlp, "Multilayer Perceptron")
-gerar_grafico(saida_random_forest, "Random Forest")
-
-# Exibe todas as figuras criadas de uma só vez, cada uma em sua janela.
-plt.show()
+    # Exibe todas os graficos criadas de uma só vez, cada uma em sua janela.
+    plt.show()

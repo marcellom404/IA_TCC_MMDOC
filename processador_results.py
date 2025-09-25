@@ -2,9 +2,10 @@ import sqlite3
 import json
 from collections import defaultdict
 
-def teste():
+def calculate_averages():
+    """Lê o banco de dados, calcula a média de acurácia para cada algoritmo e exibe os resultados."""
     conn = sqlite3.connect('results.db')
-    conn.row_factory = sqlite3.Row
+    conn.row_factory = sqlite3.Row 
     cursor = conn.cursor()
     cursor.execute('SELECT algorithm, accuracy FROM results')
     rows = cursor.fetchall()
@@ -26,4 +27,4 @@ def teste():
         print(f"  {algorithm}: {average_accuracy * 100:.4f}%")
 
 if __name__ == '__main__':
-    teste()
+    calculate_averages()

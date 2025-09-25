@@ -27,7 +27,7 @@ DATASET_PATH = path + "/" + DATASET_NAME
 DATASET_COLUMN_NAMES = list(pd.read_csv(DATASET_PATH, nrows=1).columns)
 DATASET_COLUMN_NAMES.sort(key=str.lower)
 # print(f"Colunas do dataset: {DATASET_COLUMN_NAMES}")
-num_linhas_total = 6168188  
+num_linhas_total =  6168188  
 num_linhas_desejado = 61681  
 # Gera uma lista de índices de linhas para pular aleatoriamente pq meu pc nao tem memoria infinita... ainda
 skip_indices = sorted(random.sample(range(1, num_linhas_total + 1), 
