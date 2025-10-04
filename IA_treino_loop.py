@@ -1,6 +1,6 @@
 import time
 from IA_Aprendisado_de_maquina import treinar_todos, imprimir_resultados
-from DATA_load import treinamento
+from DATA_load import get_dados_amostra
 import os
 
 # para alimentar o processador de resultados
@@ -12,7 +12,8 @@ for i in range(tam):
     
     print(f"--- Iteração {i+1}/{tam} ---")
 
-    resultados = treinar_todos(treinamento)
+    treinamento, validacao, _ = get_dados_amostra()
+    resultados = treinar_todos(treinamento, validacao)
     os.system('cls')
     
     # imprimir_resultados(resultados)

@@ -1,11 +1,9 @@
-
 import os
 import manipul_arquivo as mov
 import funcoes_teste_dataset as teste
 import random
 import pandas as pd
 import kagglehub
-
 
 
 
@@ -28,7 +26,7 @@ DATASET_COLUMN_NAMES = list(pd.read_csv(DATASET_PATH, nrows=1).columns)
 DATASET_COLUMN_NAMES.sort(key=str.lower)
 # print(f"Colunas do dataset: {DATASET_COLUMN_NAMES}")
 num_linhas_total =  6168188  
-num_linhas_desejado = 61681  
+num_linhas_desejado = 116810  
 # Gera uma lista de índices de linhas para pular aleatoriamente pq meu pc nao tem memoria infinita... ainda
 skip_indices = sorted(random.sample(range(1, num_linhas_total + 1), 
                                      num_linhas_total - num_linhas_desejado))
@@ -49,10 +47,15 @@ df.drop(columns=columns_to_drop, inplace=True)
 # "label" e a coluna que indica o tipo de fluxo de rede, sendo BENIGN o trafego comum, outros sao algum tipo de tentativa de intrusão
 # print(df["Label"].value_counts())
 
-treinamento = df.sample(frac=0.7, random_state=64)
-df_restante = df.drop(treinamento.index)
-validacao = df_restante.sample(frac=0.6667, random_state=64)
-teste = df_restante.drop(validacao.index).sample(frac=0.01,random_state=64)
+def get_dados_amostra():
+    treinamento = df.sample(frac=0.7)
+    df_restante = df.drop(treinamento.index)
+    validacao = df_restante.sample(frac=0.6667)
+    teste = df_restante.drop(validacao.index).sample(frac=0.01)
+    return treinamento, validacao, teste
+
+treinamento, validacao, teste = get_dados_amostra()
+
 
 # print("Total de 4601 linhas no conjunto original, incluindo uma linha com nomes das colunas.")
 print(f"Total de {len(df)} linhas no conjunto original")
@@ -220,4 +223,4 @@ print(f"Teste: {len(teste)} linhas")
 #  'ICMP Code_ICMP Code_bin_nan' 'ICMP Type_ICMP Type_bin_nan'
 #  'Total TCP Flow Time_Total TCP Flow Time_bin_0'
 #  'Total TCP Flow Time_Total TCP Flow Time_bin_1' 'Label_BENIGN'
-#  'Label_Infiltration - Portscan']
+#  'Label_Infiltration - Portscan'
