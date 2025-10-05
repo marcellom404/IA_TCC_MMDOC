@@ -16,6 +16,10 @@ def create_table():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             algorithm TEXT NOT NULL,
             accuracy REAL NOT NULL,
+            precisao_ataque REAL NOT NULL,
+            recall_ataque REAL NOT NULL,
+            f1_score_ataque REAL NOT NULL,
+            tempo_inferencia REAL NOT NULL,
             parameters TEXT,
             timestamp DATETIME NOT NULL
         )
@@ -23,15 +27,15 @@ def create_table():
     conn.commit()
     conn.close()
 
-def save_result(algorithm, accuracy, parameters):
+def save_result(algorithm, accuracy, precisao_ataque, recall_ataque, f1_score_ataque, tempo_inferencia, parameters):
     """Salva um novo resultado no banco de dados."""
     conn = get_db_connection()
     timestamp = datetime.now()
     # Convertendo o dicionário de parâmetros para uma string JSON
     parameters_json = json.dumps(parameters)
     conn.execute(
-        'INSERT INTO results (algorithm, accuracy, parameters, timestamp) VALUES (?, ?, ?, ?)',
-        (algorithm, accuracy, parameters_json, timestamp)
+        'INSERT INTO results (algorithm, accuracy, precisao_ataque, recall_ataque, f1_score_ataque, tempo_inferencia, parameters, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        (algorithm, accuracy, precisao_ataque, recall_ataque, f1_score_ataque, tempo_inferencia, parameters_json, timestamp)
     )
     conn.commit()
     conn.close()

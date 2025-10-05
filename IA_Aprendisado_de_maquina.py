@@ -13,8 +13,10 @@ import manipul_arquivo as mov
 import funcoes_teste_dataset as teste
 import random
 import  conversor as conv
+import time
 from DATA_load import df, alvo, get_dados_amostra
 import database
+import diagnostico
 
 # Criar a tabela do banco de dados se não existir
 database.create_table()
@@ -52,71 +54,124 @@ def gerar_grafico(dados, nome):
 # Função para ajustar e avaliar o k-NN com diferentes números de vizinhos
 def knn(data, validacao):
     saida_knn = []
-    melhor_knn = ["", 0]
+    melhor_knn = ["", 0, "", 0, 0, 0, 0]
     for i in [1, 2, 4, 8, 16, 32, 64, 65, 66, 67, 68]:
         # Inicializando o modelo com 'i' vizinhos
         ia = KNeighborsClassifier(n_neighbors=i)
         ia.fit(data.drop(alvo, axis=1), data[alvo])
+        
+        start_time = time.time()
         valida = ia.predict(validacao.drop(alvo, axis=1))
+        end_time = time.time()
+        inference_time = (end_time - start_time) * 1000 / len(validacao)
 
         # Avaliação da precisão no conjunto de validação
         prec = accuracy_score(validacao[alvo], valida)
+        report = classification_report(validacao[alvo], valida, output_dict=True, zero_division=0)
+        
+        attack_metrics = {}
+        for label, metrics in report.items():
+            if label.upper() != 'BENIGN' and label not in ['accuracy', 'macro avg', 'weighted avg']:
+                attack_metrics = metrics
+                break
+
+        precisao_ataque = attack_metrics.get('precision', 0)
+        recall_ataque = attack_metrics.get('recall', 0)
+        f1_score_ataque = attack_metrics.get('f1-score', 0)
+
+        diagnostico.analisar_resultado('K-NN', ia, f1_score_ataque, attack_metrics, validacao, alvo)
+
         saida_knn.append([f"{i}", prec])
         
         # Armazenando o melhor modelo
         if melhor_knn[1] < prec:
-            melhor_knn = [f"{i}", prec, valida]
+            melhor_knn = [f"{i}", prec, valida, precisao_ataque, recall_ataque, f1_score_ataque, inference_time]
     
     # Salvar o melhor resultado no banco de dados
-    database.save_result('K-NN', melhor_knn[1], {'n_neighbors': int(melhor_knn[0])})
+    database.save_result('K-NN', melhor_knn[1], melhor_knn[3], melhor_knn[4], melhor_knn[5], melhor_knn[6], {'n_neighbors': int(melhor_knn[0])})
     return melhor_knn, saida_knn
 
 
 # Função para ajustar e avaliar o MLP com diferentes quantidades de camadas ocultas
 def mlp(data, validacao):
     saida_mlp = []
-    melhor_mlp = ["", 0]
+    melhor_mlp = ["", 0, "", 0, 0, 0, 0]
     # Testando configurações de 2 a 8 camadas ocultas
     for i in [2, 3, 4, 5, 6, 7, 8]:
         # Inicializando o MLP com 'i' camadas ocultas e limite de iterações
         ia = MLPClassifier(hidden_layer_sizes=(i,), max_iter=1990)
         ia.fit(data.drop(alvo, axis=1), data[alvo])  # Treinamento do modelo
 
+        start_time = time.time()
         # Realizando previsões no conjunto de validação
         valida = ia.predict(validacao.drop(alvo, axis=1))
+        end_time = time.time()
+        inference_time = (end_time - start_time) * 1000 / len(validacao)
 
         # Calculando a precisão
         prec = accuracy_score(validacao[alvo], valida)
+        report = classification_report(validacao[alvo], valida, output_dict=True, zero_division=0)
+
+        attack_metrics = {}
+        for label, metrics in report.items():
+            if label.upper() != 'BENIGN' and label not in ['accuracy', 'macro avg', 'weighted avg']:
+                attack_metrics = metrics
+                break
+        
+        precisao_ataque = attack_metrics.get('precision', 0)
+        recall_ataque = attack_metrics.get('recall', 0)
+        f1_score_ataque = attack_metrics.get('f1-score', 0)
+
+        diagnostico.analisar_resultado('MLP', ia, f1_score_ataque, attack_metrics, validacao, alvo)
 
         # Armazenando o número de camadas e precisão para análise posterior
         saida_mlp.append([f"{i}", prec])
 
         # Armazenando o melhor resultado encontrado
         if melhor_mlp[1] < prec:
-            melhor_mlp = [f"{i}", prec, valida]
+            melhor_mlp = [f"{i}", prec, valida, precisao_ataque, recall_ataque, f1_score_ataque, inference_time]
 
     # Salvar o melhor resultado no banco de dados
-    database.save_result('MLP', melhor_mlp[1], {'hidden_layer_sizes': int(melhor_mlp[0])})
+    database.save_result('MLP', melhor_mlp[1], melhor_mlp[3], melhor_mlp[4], melhor_mlp[5], melhor_mlp[6], {'hidden_layer_sizes': int(melhor_mlp[0])})
     return melhor_mlp, saida_mlp
 
 def random_forest(data, validacao):
     saida_random_forest = []
-    melhor_random_forest = ["", 0]
+    melhor_random_forest = ["", 0, "", 0, 0, 0, 0]
     # Testando com diferentes números de árvores na floresta
     for n_arvores in range(15,25):
         ia = RandomForestClassifier(n_estimators=n_arvores, random_state=42, n_jobs=-1) # n_jobs=-1 usa todos os cores do processador
         ia.fit(data.drop(alvo, axis=1), data[alvo])
+        
+        start_time = time.time()
         valida = ia.predict(validacao.drop(alvo, axis=1))
+        end_time = time.time()
+        inference_time = (end_time - start_time) * 1000 / len(validacao)
+
         prec = accuracy_score(validacao[alvo], valida)
+        report = classification_report(validacao[alvo], valida, output_dict=True, zero_division=0)
+
+        attack_metrics = {}
+        for label, metrics in report.items():
+            if label.upper() != 'BENIGN' and label not in ['accuracy', 'macro avg', 'weighted avg']:
+                attack_metrics = metrics
+                break
+
+        precisao_ataque = attack_metrics.get('precision', 0)
+        recall_ataque = attack_metrics.get('recall', 0)
+        f1_score_ataque = attack_metrics.get('f1-score', 0)
+
+        diagnostico.analisar_resultado('Random Forest', ia, f1_score_ataque, attack_metrics, validacao, alvo)
+
         saida_random_forest.append([f"{n_arvores} árvores", prec])
         # print(f"Random Forest com {n_arvores} árvores: {prec*100:.5f}% de precisão.")
         if prec > melhor_random_forest[1]:
-            melhor_random_forest = [f"{n_arvores} árvores", prec, valida]
+            melhor_random_forest = [f"{n_arvores} árvores", prec, valida, precisao_ataque, recall_ataque, f1_score_ataque, inference_time]
 
     # Salvar o melhor resultado no banco de dados
     # Extrai o número de árvores do string
     n_arvores_melhor = int(melhor_random_forest[0].split()[0])
-    database.save_result('Random Forest', melhor_random_forest[1], {'n_estimators': n_arvores_melhor})
+    database.save_result('Random Forest', melhor_random_forest[1], melhor_random_forest[3], melhor_random_forest[4], melhor_random_forest[5], melhor_random_forest[6], {'n_estimators': n_arvores_melhor})
     return melhor_random_forest, saida_random_forest
 
 # Função para treinar todos os modelos

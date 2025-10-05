@@ -4,6 +4,8 @@ import funcoes_teste_dataset as teste
 import random
 import pandas as pd
 import kagglehub
+from sklearn.model_selection import train_test_split
+import numpy as np
 
 
 
@@ -21,51 +23,206 @@ else:
 DATASET_NAME ="thursday.csv"
 print(path + "/" + DATASET_NAME)
 DATASET_PATH = path + "/" + DATASET_NAME
-# Carregando os dados em um DataFrame
-DATASET_COLUMN_NAMES = list(pd.read_csv(DATASET_PATH, nrows=1).columns)
-DATASET_COLUMN_NAMES.sort(key=str.lower)
-# print(f"Colunas do dataset: {DATASET_COLUMN_NAMES}")
-num_linhas_total =  6168188  
-num_linhas_desejado = 116810  
-# Gera uma lista de índices de linhas para pular aleatoriamente pq meu pc nao tem memoria infinita... ainda
-skip_indices = sorted(random.sample(range(1, num_linhas_total + 1), 
-                                     num_linhas_total - num_linhas_desejado))
-# remova o "skiprows=skip_indices" abaixo se for usar o dataset inteiro
-df = pd.read_csv(DATASET_PATH,skiprows=skip_indices)
+# --- CONFIGURAÇÃO DA AMOSTRAGEM ---
+# Defina a porcentagem de ataques desejada no corte do dataset (ex: 0.2 para 20%)
+# Se não houver ataques suficientes, o restante será preenchido com amostras benignas.
+porcentagem_ataque_desejada = 0.5
+num_linhas_desejado = 15681
 
+print("Analisando a distribuição de classes no arquivo completo (pode levar um momento)...")
+try:
+    # Lê apenas a coluna 'Label' para identificar os índices de cada classe sem estourar a memória
+    label_df = pd.read_csv(DATASET_PATH, usecols=['Label'], dtype={'Label': 'category'})
+    attack_indices = label_df.index[label_df['Label'] != 'BENIGN'].tolist()
+    benign_indices = label_df.index[label_df['Label'] == 'BENIGN'].tolist()
 
-# mostra as colunas
-# for i in df.columns.values,df.iloc[1] :
-#     print(i)
-# for i,j in list(zip(df.columns.values,df.iloc[1] )):
-#   print(i,"| De tipo:",str(type(j)).replace("<","").replace(">","").replace("class","").replace("64","").replace("numpy.","").replace("'","").replace(" ",""))
+    num_ataques_desejado = int(num_linhas_desejado * porcentagem_ataque_desejada)
+
+    # --- NOVA LÓGICA PARA AMOSTRAGEM DE ATAQUES ---
+    # Identifica os tipos de ataque únicos (excluindo 'BENIGN')
+    attack_labels = label_df[label_df['Label'] != 'BENIGN']['Label'].unique()
+    num_attack_types = len(attack_labels)
+    ataques_a_ler_indices = []
+
+    if num_attack_types > 0:
+        print(f"Encontrados {num_attack_types} tipos de ataque. Distribuindo {num_ataques_desejado} amostras de ataque entre eles.")
+        
+        base_samples_per_attack = num_ataques_desejado // num_attack_types
+        remainder = num_ataques_desejado % num_attack_types
+
+        for i, attack_label in enumerate(attack_labels):
+            num_samples_for_this_attack = base_samples_per_attack + (1 if i < remainder else 0)
+
+            current_attack_indices = label_df.index[label_df['Label'] == attack_label].tolist()
+
+            if len(current_attack_indices) < num_samples_for_this_attack:
+                print(f"AVISO: Para o ataque '{attack_label}', existem apenas {len(current_attack_indices)} amostras, "
+                      f"menos que as {num_samples_for_this_attack} desejadas. Usando todas as disponíveis.")
+                samples_to_take = len(current_attack_indices)
+            else:
+                samples_to_take = num_samples_for_this_attack
+            
+            if samples_to_take > 0:
+                ataques_a_ler_indices.extend(random.sample(current_attack_indices, samples_to_take))
+    
+    if not ataques_a_ler_indices:
+        print("AVISO: Nenhum ataque encontrado no dataset para amostragem.")
+    else:
+        print(f"Total de {len(ataques_a_ler_indices)} amostras de ataque selecionadas de {num_attack_types} tipos.")
+
+    # Preenche o restante com benignos
+    num_benignos_a_ler = num_linhas_desejado - len(ataques_a_ler_indices)
+    benignos_a_ler_indices = random.sample(benign_indices, num_benignos_a_ler)
+
+    indices_a_manter = set(ataques_a_ler_indices + benignos_a_ler_indices)
+
+    # Lê o CSV pulando as linhas que não queremos.
+    print("Lendo amostra estratificada do disco...")
+    df = pd.read_csv(DATASET_PATH, skiprows=lambda i: i > 0 and (i - 1) not in indices_a_manter)
+    print(f"Amostra de {len(df)} linhas carregada, com {len(ataques_a_ler_indices)} ataques.")
+
+except Exception as e:
+    print(f"FALHA NA AMOSTRAGEM ESTRATIFICADA: {e}.")
+    print("Usando amostragem aleatória simples como fallback.")
+    num_linhas_total = sum(1 for row in open(DATASET_PATH)) -1
+    skip_indices = sorted(random.sample(range(1, num_linhas_total + 1),
+                                         num_linhas_total - num_linhas_desejado))
+    df = pd.read_csv(DATASET_PATH, skiprows=skip_indices)
+
 # colunas que precisam ser removidas
 columns_to_drop = ["id", "Attempted Category", "Timestamp", "Src IP", "Dst IP","Flow ID","Fwd URG Flags",'Bwd URG Flags', 'URG Flag Count']
 df.drop(columns=columns_to_drop, inplace=True)
-# print("----------------------------------------",teste.encontrar_colunas_com_valor_especifico(df,alvo,"BENIGN"))
+
+# Substitui valores infinitos por NaN e remove as linhas correspondentes
+df.replace([np.inf, -np.inf], np.nan, inplace=True)
+linhas_com_nan = df.isnull().any(axis=1).sum()
+if linhas_com_nan > 0:
+    print(f"Limpando {linhas_com_nan} linhas que continham valores infinitos.")
+    df.dropna(inplace=True)
+
+# Medida de segurança para remover colunas que vazam a resposta (ex: Label_BENIGN)
+leaky_cols = [col for col in df.columns if col.startswith('Label_')]
+if leaky_cols:
+    print(f"ALERTA DE SEGURANÇA: Encontradas e removidas colunas com vazamento de dados: {leaky_cols}")
+    df.drop(columns=leaky_cols, inplace=True)
+
+print("\n--- Distribuição de Classes no DataFrame Amostrado ---")
+print(df[alvo].value_counts())
+
+# --- FILTRAGEM DE CLASSES RARAS ---
+print("\n--- Filtrando classes com menos de 100 amostras ---")
+class_counts = df[alvo].value_counts()
+rare_classes = class_counts[class_counts < 100].index.tolist()
+# Ensure 'BENIGN' is not considered a rare class to be merged
+if 'BENIGN' in rare_classes:
+    rare_classes.remove('BENIGN')
+
+# Find a suitable class to merge the rare ones into (most common attack class)
+ataques_counts = class_counts[class_counts.index != 'BENIGN']
+if not ataques_counts.empty:
+    # Select the most frequent attack class that is not in the rare_classes list
+    valid_ataques_counts = ataques_counts.drop(rare_classes, errors='ignore')
+    if not valid_ataques_counts.empty:
+        merge_target_class = valid_ataques_counts.idxmax()
+
+        if rare_classes:
+            print(f"Classes raras a serem mescladas: {rare_classes}")
+            print(f"Classe alvo para mesclagem: '{merge_target_class}'")
+            df[alvo] = df[alvo].replace(rare_classes, merge_target_class)
+            print("\n--- Distribuição de Classes Após a Mesclagem ---")
+            print(df[alvo].value_counts())
+        else:
+            print("Nenhuma classe de ataque rara (com menos de 100 amostras) para mesclar.")
+    else:
+        print("Nenhuma classe de ataque com 100 ou mais amostras encontrada para servir como alvo de mesclagem.")
+else:
+    print("Nenhuma classe de ataque encontrada para avaliar a raridade.")
 
 # "label" e a coluna que indica o tipo de fluxo de rede, sendo BENIGN o trafego comum, outros sao algum tipo de tentativa de intrusão
 # print(df["Label"].value_counts())
 
 def get_dados_amostra():
-    treinamento = df.sample(frac=0.7)
-    df_restante = df.drop(treinamento.index)
-    validacao = df_restante.sample(frac=0.6667)
-    teste = df_restante.drop(validacao.index).sample(frac=0.01)
+    tentativa = 0
+    while True:
+        tentativa += 1
+        print(f"\n--- Tentativa de divisão de dados nº {tentativa} ---")
+        # --- Etapa 1: Filtrar o dataframe principal ---
+        class_counts1 = df[alvo].value_counts()
+        rare_classes1 = class_counts1[class_counts1 < 2].index
+        if not rare_classes1.empty:
+            df_filtered = df[~df[alvo].isin(rare_classes1)]
+        else:
+            df_filtered = df
+
+        # --- Etapa 2: Primeira divisão ---
+        treinamento, df_restante = train_test_split(
+            df_filtered,
+            test_size=0.3,
+            stratify=df_filtered[alvo],
+            random_state=random.randint(1, 1000)
+        )
+
+        # --- Etapa 3: Filtrar o dataframe restante ---
+        class_counts2 = df_restante[alvo].value_counts()
+        rare_classes2 = class_counts2[class_counts2 < 2].index
+        if not rare_classes2.empty:
+            df_restante_filtered = df_restante[~df_restante[alvo].isin(rare_classes2)]
+        else:
+            df_restante_filtered = df_restante
+
+        # --- Etapa 4: Segunda divisão ---
+        if df_restante_filtered.empty or len(df_restante_filtered) < 2:
+            print("Não foi possível criar conjuntos de validação/teste. Repetindo...")
+            continue
+
+        test_size = 0.33
+        if len(df_restante_filtered) * test_size < 1:
+            test_size = 1.0
+
+        validacao, teste = train_test_split(
+            df_restante_filtered,
+            test_size=test_size,
+            stratify=df_restante_filtered[alvo],
+            random_state=random.randint(1, 1000)
+        )
+
+        # --- Etapa 5: Verificação de qualidade ---
+        labels_treino = set(treinamento[alvo].unique())
+        labels_validacao = set(validacao[alvo].unique())
+        labels_teste = set(teste[alvo].unique())
+
+        validacao_ok = labels_validacao.issubset(labels_treino)
+        teste_ok = labels_teste.issubset(labels_treino)
+
+        if not validacao.empty and not teste.empty and validacao_ok and teste_ok:
+            
+            break
+        else:
+            
+            if not validacao_ok:
+                print(f"  - Classes na validação não contidas no treino: {labels_validacao - labels_treino}")
+            if not teste_ok:
+                print(f"  - Classes no teste não contidas no treino: {labels_teste - labels_treino}")
+
     return treinamento, validacao, teste
 
-treinamento, validacao, teste = get_dados_amostra()
+# treinamento, validacao, teste = get_dados_amostra()
 
+# print(f"\n--- Análise Final do DataFrame ---")
+# print(f"Total de {len(df)} linhas no conjunto original")
+# print(f"Treinamento: {len(treinamento)} linhas")
+# print(f"Validação: {len(validacao)} linhas")
+# print(f"Teste: {len(teste)} linhas")
 
-# print("Total de 4601 linhas no conjunto original, incluindo uma linha com nomes das colunas.")
-print(f"Total de {len(df)} linhas no conjunto original")
-print(f"Validação: {len(validacao)} linhas")
-print(f"Treinamento: {len(treinamento)} linhas")
-print(f"Teste: {len(teste)} linhas")
-# print("Soma total:", len(validacao) + len(treinamento) + len(teste))
+# print("\nDistribuição de Classes (Treinamento):")
+# print(treinamento[alvo].value_counts())
+# print("\nDistribuição de Classes (Validação):")
+# print(validacao[alvo].value_counts())
+# print("\nDistribuição de Classes (Teste):")
+# print(teste[alvo].value_counts())
 
 # variaveis apos pre-processamento
-# df = pd.read_csv("one_hot_encoded_data.csv")
+
 # ['Src Port_Src Port_bin_0' 'Src Port_Src Port_bin_1'
 #  'Src Port_Src Port_bin_2' 'Src Port_Src Port_bin_3'
 #  'Dst Port_Dst Port_bin_0' 'Dst Port_Dst Port_bin_1'
