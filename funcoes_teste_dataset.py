@@ -8,7 +8,7 @@ def encontrar_colunas_com_valor_especifico(df, coluna_alvo, valor_alvo):
         valor_alvo: Valor específico na coluna alvo.
 
     Returns:
-        Uma lista de nomes de colunas que atendem à condição.
+        Uma lista de nomes de colunas 
     """
     colunas_especificas = []
     for coluna in df.columns:

@@ -20,14 +20,14 @@ else:
     #move o dataset para fora dos arquivos temporarios, salvando em datasets/
     mov.save_dataset_path_to_db(mov.move_dataset(path))
 # informaçoes sobre os datasets no info_dataset.py 'CSECICIDS2018_improved/Friday-02-03-2018.csv'
-DATASET_NAME ="thursday.csv"
+DATASET_NAME ="CSECICIDS2018_improved\merged_dataset.csv"
 print(path + "/" + DATASET_NAME)
 DATASET_PATH = path + "/" + DATASET_NAME
 # --- CONFIGURAÇÃO DA AMOSTRAGEM ---
 # Defina a porcentagem de ataques desejada no corte do dataset (ex: 0.2 para 20%)
 # Se não houver ataques suficientes, o restante será preenchido com amostras benignas.
-porcentagem_ataque_desejada = 0.5
-num_linhas_desejado = 15681
+porcentagem_ataque_desejada = 0.15
+num_linhas_desejado = 20000
 
 print("Analisando a distribuição de classes no arquivo completo (pode levar um momento)...")
 try:
@@ -146,7 +146,7 @@ def get_dados_amostra():
     while True:
         tentativa += 1
         print(f"\n--- Tentativa de divisão de dados nº {tentativa} ---")
-        # --- Etapa 1: Filtrar o dataframe principal ---
+        # ---Filtrar o dataframe principal ---
         class_counts1 = df[alvo].value_counts()
         rare_classes1 = class_counts1[class_counts1 < 2].index
         if not rare_classes1.empty:
@@ -154,15 +154,15 @@ def get_dados_amostra():
         else:
             df_filtered = df
 
-        # --- Etapa 2: Primeira divisão ---
+        # --- divisões ---
         treinamento, df_restante = train_test_split(
             df_filtered,
-            test_size=0.3,
+            test_size=0.5,
             stratify=df_filtered[alvo],
             random_state=random.randint(1, 1000)
         )
 
-        # --- Etapa 3: Filtrar o dataframe restante ---
+       
         class_counts2 = df_restante[alvo].value_counts()
         rare_classes2 = class_counts2[class_counts2 < 2].index
         if not rare_classes2.empty:
@@ -170,7 +170,7 @@ def get_dados_amostra():
         else:
             df_restante_filtered = df_restante
 
-        # --- Etapa 4: Segunda divisão ---
+        
         if df_restante_filtered.empty or len(df_restante_filtered) < 2:
             print("Não foi possível criar conjuntos de validação/teste. Repetindo...")
             continue
@@ -186,7 +186,7 @@ def get_dados_amostra():
             random_state=random.randint(1, 1000)
         )
 
-        # --- Etapa 5: Verificação de qualidade ---
+        
         labels_treino = set(treinamento[alvo].unique())
         labels_validacao = set(validacao[alvo].unique())
         labels_teste = set(teste[alvo].unique())
@@ -203,16 +203,18 @@ def get_dados_amostra():
                 print(f"  - Classes na validação não contidas no treino: {labels_validacao - labels_treino}")
             if not teste_ok:
                 print(f"  - Classes no teste não contidas no treino: {labels_teste - labels_treino}")
+                
+
 
     return treinamento, validacao, teste
+if __name__ == '__main__':
+    treinamento, validacao, teste = get_dados_amostra()
+    print(f"\n--- Análise Final do DataFrame ---")
+    print(f"Total de {len(df)} linhas no conjunto original")
+    print(f"Treinamento: {len(treinamento)} linhas")
+    print(f"Validação: {len(validacao)} linhas")
+    print(f"Teste: {len(teste)} linhas")
 
-# treinamento, validacao, teste = get_dados_amostra()
-
-# print(f"\n--- Análise Final do DataFrame ---")
-# print(f"Total de {len(df)} linhas no conjunto original")
-# print(f"Treinamento: {len(treinamento)} linhas")
-# print(f"Validação: {len(validacao)} linhas")
-# print(f"Teste: {len(teste)} linhas")
 
 # print("\nDistribuição de Classes (Treinamento):")
 # print(treinamento[alvo].value_counts())
